@@ -1,10 +1,12 @@
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use anyhow::Context;
 
 pub fn deploy() -> anyhow::Result<()> {
     let status = Command::new("fcitx5")
         .arg("-r")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .status()
         .context("无法执行 fcitx5 -r，请确保 fcitx5 已安装且在 PATH 中")?;
 

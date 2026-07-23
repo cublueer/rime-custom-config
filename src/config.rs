@@ -84,23 +84,35 @@ pub fn init_config() -> anyhow::Result<()> {
         ))? {
             anyhow::bail!("用户取消操作");
         }
-        let indent: String = line.chars().take_while(|c| c.is_whitespace()).collect();
-        let mut new_lines: Vec<String> = lines.iter().map(|s| s.to_string()).collect();
-        new_lines[idx] = format!("{}translator/dictionary: custom_words", indent);
-        fs::write(&path, new_lines.join("\n") + "\n")?;
-        println!("已更新 translator/dictionary");
-        return Ok(());
     }
 
-    if let Some(idx) = lines.iter().position(|l| l.trim() == "patch:") {
-        let indent_len = lines[idx]
+    let mut new_lines: Vec<String> = lines.iter().map(|s| s.to_string()).collect();
+    if let Some(idx) = td_idx {
+        new_lines.remove(idx);
+    }
+
+    if let Some(patch_idx) = new_lines.iter().position(|l| l.trim() == "patch:") {
+        let patch_indent = new_lines[patch_idx]
             .chars()
             .take_while(|c| c.is_whitespace())
             .count();
-        let child_indent = " ".repeat(indent_len + 2);
-        let mut new_lines: Vec<String> = lines.iter().map(|s| s.to_string()).collect();
+        let child_indent = " ".repeat(patch_indent + 2);
+
+        let mut insert_idx = patch_idx;
+        for i in (patch_idx + 1)..new_lines.len() {
+            if new_lines[i].is_empty() {
+                continue;
+            }
+            let line_indent = new_lines[i].chars().take_while(|c| c.is_whitespace()).count();
+            if line_indent > patch_indent {
+                insert_idx = i;
+            } else {
+                break;
+            }
+        }
+
         new_lines.insert(
-            idx + 1,
+            insert_idx + 1,
             format!("{}translator/dictionary: custom_words", child_indent),
         );
         fs::write(&path, new_lines.join("\n") + "\n")?;
