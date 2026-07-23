@@ -128,3 +128,74 @@ pub fn init_config() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+pub fn cleanup_config() -> anyhow::Result<()> {
+    let dict_path = dict_path();
+    if dict_path.exists() {
+        if !confirm("确定删除词库文件 custom_words.dict.yaml？")? {
+            println!("跳过删除词库文件");
+        } else {
+            fs::remove_file(&dict_path)?;
+            println!("已删除 {}", dict_path.display());
+        }
+    } else {
+        println!("词库文件不存在，跳过删除");
+    }
+
+    let config_path = config_path();
+    if !config_path.exists() {
+        println!("配置文件不存在，无需清理");
+        return Ok(());
+    }
+
+    let content = fs::read_to_string(&config_path)?;
+    let lines: Vec<&str> = content.lines().collect();
+
+    let td_idx = lines.iter().position(|l| {
+        let trimmed = l.trim_start();
+        trimmed.starts_with("translator/dictionary:")
+    });
+
+    let Some(idx) = td_idx else {
+        println!("未找到 translator/dictionary 配置，无需清理");
+        return Ok(());
+    };
+
+    let line = lines[idx];
+    let value = line.split_once(':').map(|(_, v)| v.trim()).unwrap_or("");
+    if value != "custom_words" {
+        if !confirm(&format!(
+            "translator/dictionary 当前值为 \"{}\"，确定删除？",
+            value
+        ))? {
+            anyhow::bail!("用户取消操作");
+        }
+    }
+
+    let mut new_lines: Vec<String> = lines.iter().map(|s| s.to_string()).collect();
+    new_lines.remove(idx);
+
+    let patch_idx = new_lines.iter().position(|l| l.trim() == "patch:");
+    if let Some(p_idx) = patch_idx {
+        let patch_indent = new_lines[p_idx]
+            .chars()
+            .take_while(|c| c.is_whitespace())
+            .count();
+
+        let has_children = new_lines.iter().skip(p_idx + 1).any(|l| {
+            if l.is_empty() {
+                return false;
+            }
+            let line_indent = l.chars().take_while(|c| c.is_whitespace()).count();
+            line_indent > patch_indent
+        });
+
+        if !has_children {
+            new_lines.remove(p_idx);
+        }
+    }
+
+    fs::write(&config_path, new_lines.join("\n") + "\n")?;
+    println!("已清理 translator/dictionary 配置");
+    Ok(())
+}

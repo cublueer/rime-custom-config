@@ -38,6 +38,8 @@ enum Command {
     Search {
         keyword: String,
     },
+    /// 清理 init 添加的配置和词库文件
+    Cleanup,
     /// 重新部署 fcitx5 (fcitx5 -r)
     Deploy,
     /// 备份管理
@@ -156,6 +158,12 @@ fn main() -> anyhow::Result<()> {
                 for entry in &results {
                     println!("{}\t{}\t{}", entry.word, entry.pinyin, entry.weight);
                 }
+            }
+        }
+        Command::Cleanup => {
+            config::cleanup_config()?;
+            if config::confirm("是否重新部署 fcitx5？")? {
+                deploy::deploy()?;
             }
         }
         Command::Deploy => deploy::deploy()?,
