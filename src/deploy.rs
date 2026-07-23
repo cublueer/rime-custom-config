@@ -3,17 +3,13 @@ use std::process::{Command, Stdio};
 use anyhow::Context;
 
 pub fn deploy() -> anyhow::Result<()> {
-    let status = Command::new("fcitx5")
+    Command::new("fcitx5")
         .arg("-r")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .status()
+        .spawn()
         .context("无法执行 fcitx5 -r，请确保 fcitx5 已安装且在 PATH 中")?;
 
-    if !status.success() {
-        anyhow::bail!("fcitx5 -r 执行失败");
-    }
-
-    println!("fcitx5 已重新部署");
+    println!("fcitx5 已发送重启信号");
     Ok(())
 }
